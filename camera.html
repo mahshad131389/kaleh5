@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-face-aframe.prod.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #000;
+        }
+        #camera-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            display: none;
+            background-color: black;
+            overflow: hidden;
+        }
+        #close-camera {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            z-index: 10000;
+            cursor: pointer;
+            font-size: 18px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+       
+  
+        
+   
+        #face-scene, #face-scene > a-scene {
+            width: 100% !important;
+            height: 100% !important;
+            position: absolute !important;
+        }
+        .mindar-ui-overlay, .mindar-ui-video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">در حال بارگذاری...</div>
+    <div id="status">در حال تشخیص صورت...</div>
+
+    <a-scene mindar-image="imageTargetSrc: target.mind;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+        <a-entity mindar-image-target="targetIndex: 0">
+            <a-plane color="blue" opacity="0.5" position="0 0 0" height="0.552" width="1" rotation="0 0 0"></a-plane>
+        </a-entity>
+    </a-scene>
+    
+    <div id="camera-container">
+        <a-scene id="face-scene" embedded mindar-face color-space="sRGB" 
+                 renderer="colorManagement: true, physicallyCorrectLights" 
+                 vr-mode-ui="enabled: false" 
+                 device-orientation-permission-ui="enabled: false">
+        
+            <a-assets>
+                <a-asset-item id="glassesModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/glasses/scene.gltf"></a-asset-item>
+            </a-assets>
+            
+            <a-camera active="false" position="0 0 0"></a-camera>
+            
+            <a-entity mindar-face-target="anchorIndex: 168">
+                <a-gltf-model rotation="0 0 0" 
+                            position="0 0 0" 
+                            scale="0.01 0.01 0.01" 
+                            src="#glassesModel"
+                            visible="true">
+                </a-gltf-model>
+            </a-entity>
+            
+        </a-scene>
+        <button id="close-camera">بستن دوربین و فیلتر</button>
+    </div>
+
+    <script>
+        const scene = document.querySelector('a-scene');
+        const cameraContainer = document.getElementById('camera-container');
+        const closeButton = document.getElementById('close-camera');
+        const loading = document.getElementById('loading');
+        const status = document.getElementById('status');
+        
+        window.addEventListener('load', function() {
+            if (scene.hasLoaded) {
+                loading.style.display = 'none';
+            } else {
+                scene.addEventListener('loaded', function() {
+                    loading.style.display = 'none';
+                });
+            }
+        });
+        
+        scene.addEventListener('targetFound', event => {
+            openFrontCamera();
+        });
+        
+        function openFrontCamera() {
+            cameraContainer.style.display = 'block';
+            status.style.display = 'block';
+            
+            const constraints = {
+                video: { 
+                    facingMode: "user",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            };
+            
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+                    const faceScene = document.querySelector('#face-scene');
+                    if (faceScene) {
+                        const faceSystem = faceScene.systems["mindar-face-system"];
+                        if (faceSystem) {
+                            setTimeout(() => {
+                                faceSystem.start(); 
+                                
+                                setTimeout(() => {
+                                    status.style.display = 'none';
+                                }, 2000);
+                            }, 500);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("خطا در دسترسی به دوربین: ", error);
+                    alert("امکان دسترسی به دوربین جلو وجود ندارد. لطفا مجوزها را بررسی کنید.");
+                    cameraContainer.style.display = 'none';
+                    status.style.display = 'none';
+                });
+        }
+        
+        closeButton.addEventListener('click', function() {
+            cameraContainer.style.display = 'none';
+            
+            const faceScene = document.querySelector('#face-scene');
+            if (faceScene) {
+                const faceSystem = faceScene.systems["mindar-face-system"];
+                if (faceSystem) {
+                    faceSystem.stop();
+                }
+            }
+        });
+        
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            loading.textContent = 'مرورگر شما از قابلیت دسترسی به دوربین پشتیبانی نمی‌کند. لطفا از مرورگر دیگری استفاده کنید.';
+        }
+    </script>
+</body>
+</html>

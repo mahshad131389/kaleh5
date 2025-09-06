@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: white;
+        }
+        
+        #close-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.3);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            z-index: 10000;
+            display: none;
+            cursor: pointer;
+        }
+        
+        .model-container {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            background-color: #000;
+        }
+        
+        model-viewer {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .status {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 20px;
+            z-index: 100;
+            text-align: center;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">در حال بارگذاری...</div>
+    <div id="status" class="status" style="display: none;"></div>
+    
+    <div id="model-container" class="model-container">
+        <model-viewer 
+            src="icecream.glb" 
+            alt="مدل بستنی" 
+            camera-controls 
+            auto-rotate 
+            ar
+            ar-modes="webxr scene-viewer quick-look"
+            shadow-intensity="1.0"
+            camera-orbit="0deg 75deg 105%"
+            field-of-view="30deg">
+            
+            <!-- دکمه فعال‌سازی AR -->
+            <button slot="ar-button" style="position: absolute; bottom: 20px; right: 20px; background: white; border: none; padding: 10px 15px; border-radius: 5px;">
+                مشاهده در AR
+            </button>
+            
+        </model-viewer>
+    </div>
+    
+    <a-scene mindar-image="imageTargetSrc: target.mind;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" >
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+        <a-entity mindar-image-target="targetIndex: 0">
+            <a-plane position="0 0 0" height="0.552" width="1" rotation="0 0 0" visible="false"></a-plane>
+        </a-entity>
+    </a-scene>
+    
+    <button id="close-button">بستن مدل</button>
+
+    <script>
+        const scene = document.querySelector('a-scene');
+        const modelContainer = document.getElementById('model-container');
+        const closeButton = document.getElementById('close-button');
+        const loading = document.getElementById('loading');
+        const status = document.getElementById('status');
+        
+        // بررسی پشتیبانی از WebXR
+        if (navigator.xr) {
+            navigator.xr.isSessionSupported('immersive-ar')
+            .then(supported => {
+                if (!supported) {
+                    status.style.display = 'block';
+                    status.textContent = 'مرورگر شما از قابلیت AR پشتیبانی نمی‌کند';
+                }
+            });
+        } else {
+            status.style.display = 'block';
+            status.textContent = 'مرورگر شما از WebXR پشتیبانی نمی‌کند';
+        }
+        
+        scene.addEventListener('targetFound', event => {
+            console.log("نشانه شناسایی شد");
+            loading.style.display = 'none';
+            modelContainer.style.display = 'block';
+            closeButton.style.display = 'block';
+            status.style.display = 'none';
+        });
+        
+        scene.addEventListener('targetLost', event => {
+            console.log("نشانه از دست رفت");
+            modelContainer.style.display = 'none';
+            closeButton.style.display = 'none';
+        });
+        
+        closeButton.addEventListener('click', function() {
+            modelContainer.style.display = 'none';
+            closeButton.style.display = 'none';
+        });
+        
+        scene.addEventListener('loaded', function() {
+            console.log("صحنه بارگذاری شد");
+            loading.textContent = "نشانه را مقابل دوربین بگیرید";
+            
+            // بررسی وجود خطا در بارگذاری مدل
+            const modelViewer = document.querySelector('model-viewer');
+            modelViewer.addEventListener('error', (e) => {
+                status.style.display = 'block';
+                status.textContent = 'خطا در بارگذاری مدل: ' + e.detail.message;
+                console.error('Model error:', e.detail.message);
+            });
+            
+            // بررسی بارگذاری موفق مدل
+            modelViewer.addEventListener('load', () => {
+                console.log('مدل با موفقیت بارگذاری شد');
+                status.style.display = 'none';
+            });
+        });
+        
+        // نمایش خطاهای MindAR
+        scene.addEventListener('mindarError', (error) => {
+            console.error('MindAR Error:', error);
+            status.style.display = 'block';
+            status.textContent = 'خطا در سیستم AR: ' + error.detail.message;
+        });
+    </script>
+</body>
+</html>
